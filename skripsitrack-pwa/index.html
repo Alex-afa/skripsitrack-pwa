@@ -2,8 +2,8 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#4338ca">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1a4b">
 <title>SkripsiTrack PWA</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
@@ -11,14 +11,16 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header><button id="back" hidden aria-label="Kembali">←</button><h1 id="title">SkripsiTrack</h1></header>
-<main id="app"></main>
+<div class="shell">
+  <header id="hero" class="hero"></header>
+  <main id="app"></main>
+</div>
 <nav>
-  <a href="#/" data-r="home">📝<span>Bimbingan</span></a>
-  <a href="#/dosen" data-r="dosen">👨‍🏫<span>Dosen</span></a>
-  <a href="#/tambah" data-r="tambah">➕<span>Tambah</span></a>
-  <a href="#/progres" data-r="progres">📈<span>Progres</span></a>
-  <a href="#/profile" data-r="profile">👤<span>Profile</span></a>
+  <a href="#/" data-r="home"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Bimbingan</a>
+  <a href="#/dosen" data-r="dosen"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2a5 5 0 0 1 4.5 5.3"/></svg>Dosen</a>
+  <a href="#/tambah" data-r="tambah"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Tambah</a>
+  <a href="#/progres" data-r="progres"><svg viewBox="0 0 24 24"><path d="M5 20v-6M12 20V5M19 20v-9"/></svg>Progres</a>
+  <a href="#/profile" data-r="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profile</a>
 </nav>
 <script src="config.js"></script>
 <script src="app.js"></script>

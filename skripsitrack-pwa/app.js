@@ -1,9 +1,12 @@
 const $ = s => document.querySelector(s);
-const app = $("#app"), title = $("#title"), back = $("#back");
+const app = $("#app"), hero = $("#hero");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const arr = x => Array.isArray(x) ? x : (x && x.data) || [];
 const one = x => (x && x.data && !Array.isArray(x.data)) ? x.data : x;
 const tgl = d => d ? new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "-";
+const pad = n => String(n).padStart(2, "0");
+const byDate = (p, q) => String(q.tanggal).localeCompare(String(p.tanggal));
+const initials = n => String(n || "?").replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
 
 async function api(path, opt = {}) {
   const r = await fetch(API_BASE + path, { headers: { "Content-Type": "application/json" }, ...opt });
@@ -15,34 +18,59 @@ const getAll = async () => {
   return { b: arr(b), d: arr(d) };
 };
 const dosenName = (d, id) => (d.find(x => x.id == id) || {}).nama || "-";
-const tag = s => `<span class="tag ${esc(s)}">${esc(s)}</span>`;
+const chip = s => `<span class="chip ${esc(s)}">${esc(s)}</span>`;
+const babStatus = (b, i) => {
+  const l = b.filter(x => Number(x.bab) === i);
+  if (!l.length) return "Belum";
+  return l.some(x => x.status === "ACC") ? "ACC" : l.sort(byDate)[0].status;
+};
+const tracker = b => `<div class="tracker">${Array.from({ length: TOTAL_BAB }, (_, i) =>
+  `<div class="seg ${babStatus(b, i + 1)}"><small>Bab</small><b>${i + 1}</b></div>`).join("")}</div>`;
+const sec = t => `<h2 class="sec"><span>${esc(t)}</span></h2>`;
+const item = (x, d) => `<a class="item ${esc(x.status)}" href="#/detail/${x.id}">
+  <div class="babno"><small>Bab</small><b>${esc(x.bab)}</b></div>
+  <div class="ib"><h3>${esc(x.topik)}</h3><p>${tgl(x.tanggal)} · ${esc(dosenName(d, x.dosenId))}</p></div>${chip(x.status)}</a>`;
+const ART = `<svg viewBox="0 0 400 110" width="100%" height="110" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2">
+  <rect x="150" y="16" width="70" height="86" style="fill:var(--paper)"/><rect x="172" y="8" width="70" height="86" style="fill:var(--card)"/>
+  <path d="M186 32h42M186 44h42M186 56h28"/><path d="M200 76l8 8 17-19" stroke="#0f7b4d" stroke-width="4"/></g>
+  <path d="M20 102h360" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="5 5"/></svg>`;
+
+function setHero({ title, sub, stats, back }) {
+  const today = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  hero.className = "hero" + (stats ? " big" : "");
+  hero.innerHTML = `<div class="top">${back ? `<button class="back" id="bk" aria-label="Kembali">←</button>` : `<span class="mark"><i></i><i></i><i></i></span>`}<span>${today}</span></div>
+    <h1>${esc(title)}</h1>${sub ? `<p>${esc(sub)}</p>` : ""}
+    ${stats ? `<div class="stats">${stats.map(([n, l]) => `<div><b>${esc(n)}</b><span>${esc(l)}</span></div>`).join("")}</div>` : ""}`;
+  if (back) $("#bk").onclick = () => history.back();
+}
 
 const pages = {
   async home() {
-    title.textContent = "Riwayat Bimbingan";
     const { b, d } = await getAll();
-    b.sort((x, y) => String(y.tanggal).localeCompare(String(x.tanggal)));
-    app.innerHTML = b.length ? b.map(x => `
-      <a class="card" href="#/detail/${x.id}">
-        <div><b>${esc(x.topik)}</b><br><small>${tgl(x.tanggal)} • Bab ${esc(x.bab)} • ${esc(dosenName(d, x.dosenId))}</small></div>
-        ${tag(x.status)}</a>`).join("") : `<p class="msg">Belum ada catatan bimbingan.</p>`;
+    b.sort(byDate);
+    const acc = new Set(b.filter(x => x.status === "ACC").map(x => Number(x.bab))).size;
+    setHero({ title: "SkripsiTrack", sub: "Catatan bimbingan dan progres skripsi, rapi di satu tempat.",
+      stats: [[pad(b.length), "bimbingan"], [pad(d.length), "dosen"], [`${acc}/${TOTAL_BAB}`, "bab ACC"]] });
+    const f = b[0];
+    app.innerHTML = sec("Progres per bab") + tracker(b) + (f ? sec("Bimbingan terakhir") +
+      `<a class="feat" href="#/detail/${f.id}"><div class="art">${ART}</div><div class="fb">${chip(f.status)}
+        <h3>${esc(f.topik)}</h3><p>${esc(f.catatan || "Belum ada catatan revisi.")}</p><span class="more">Buka catatan</span></div></a>` +
+      sec("Semua riwayat") + b.map(x => item(x, d)).join("")
+      : `<p class="msg">Belum ada bimbingan. Ketuk Tambah untuk mencatat yang pertama.</p>`);
   },
   async detail(id) {
-    title.textContent = "Detail Bimbingan";
     const [x, dd] = await Promise.all([api(`${EP.bimbingan}/${id}`).then(one), api(EP.dosen)]);
-    app.innerHTML = `<div class="box">
-      <h2>${esc(x.topik)}</h2>${tag(x.status)}
-      <p>Dosen: <b>${esc(dosenName(arr(dd), x.dosenId))}</b></p>
-      <p>Tanggal: <b>${tgl(x.tanggal)}</b></p>
-      <p>Bab: <b>${esc(x.bab)}</b></p>
-      <p>Catatan / revisi:<br>${esc(x.catatan || "-")}</p>
-      <label>Ubah status</label>
+    const d = arr(dd);
+    setHero({ title: x.topik, sub: "Bimbingan dengan " + dosenName(d, x.dosenId), back: true });
+    app.innerHTML = `<div class="box">${chip(x.status)}
+      <dl class="kv"><dt>Dosen</dt><dd>${esc(dosenName(d, x.dosenId))}</dd><dt>Tanggal</dt><dd>${tgl(x.tanggal)}</dd><dt>Bab</dt><dd>Bab ${esc(x.bab)}</dd></dl>
+      <b>Catatan revisi</b><div class="note">${esc(x.catatan || "Tidak ada catatan.")}</div></div>
+      <div class="box"><label for="st" style="margin-top:0">Ubah status</label>
       <select id="st">${STATUS.map(s => `<option ${s === x.status ? "selected" : ""}>${s}</option>`).join("")}</select>
-      <button class="btn" id="upd">Simpan Status</button>
-      <button class="btn red" id="del">Hapus</button></div>`;
+      <button class="btn" id="upd">Simpan status</button><button class="btn ghost" id="del">Hapus catatan</button></div>`;
     $("#upd").onclick = async () => {
       await api(`${EP.bimbingan}/${id}`, { method: "PUT", body: JSON.stringify({ ...x, status: $("#st").value }) });
-      alert("Status diperbarui"); pages.detail(id);
+      pages.detail(id);
     };
     $("#del").onclick = async () => {
       if (!confirm("Hapus catatan ini?")) return;
@@ -51,32 +79,31 @@ const pages = {
     };
   },
   async dosen() {
-    title.textContent = "Dosen Pembimbing";
     const { b, d } = await getAll();
-    app.innerHTML = d.map(x => `
-      <a class="card" href="#/dosen/${x.id}"><div><b>${esc(x.nama)}</b><br><small>${esc(x.peran)} • ${esc(x.bidang)}</small></div>
-      <small>${b.filter(y => y.dosenId == x.id).length}x</small></a>`).join("") || `<p class="msg">Belum ada dosen.</p>`;
+    setHero({ title: "Dosen", sub: "Pembimbing skripsi dan riwayat bimbingannya." });
+    app.innerHTML = d.map(x => `<a class="item" href="#/dosen/${x.id}"><div class="av">${esc(initials(x.nama))}</div>
+      <div class="ib"><h3>${esc(x.nama)}</h3><p>${esc(x.peran)} · ${esc(x.bidang)}</p></div>
+      <span class="cnt">${b.filter(y => y.dosenId == x.id).length}</span></a>`).join("") || `<p class="msg">Belum ada dosen.</p>`;
   },
   async dosenDetail(id) {
     const { b, d } = await getAll();
     const x = d.find(y => y.id == id) || {};
-    title.textContent = "Profil Dosen";
-    const list = b.filter(y => y.dosenId == id).sort((p, q) => String(q.tanggal).localeCompare(String(p.tanggal)));
-    app.innerHTML = `<div class="box"><h2>${esc(x.nama)}</h2><p>${esc(x.peran)}<br>Bidang: ${esc(x.bidang)}<br>Email: ${esc(x.email || "-")}</p></div>
-      <h3>Riwayat bimbingan (${list.length})</h3>` +
-      (list.map(y => `<a class="card" href="#/detail/${y.id}"><div><b>${esc(y.topik)}</b><br><small>${tgl(y.tanggal)} • Bab ${esc(y.bab)}</small></div>${tag(y.status)}</a>`).join("") || `<p class="msg">Belum ada bimbingan.</p>`);
+    const list = b.filter(y => y.dosenId == id).sort(byDate);
+    setHero({ title: x.nama || "Dosen", sub: `${x.peran || ""} · ${x.bidang || ""}`, back: true });
+    app.innerHTML = `<div class="box center"><div class="av lg">${esc(initials(x.nama))}</div><b>${esc(x.nama)}</b><br><span style="color:var(--mut)">${esc(x.email || "-")}</span></div>` +
+      sec(`Riwayat bimbingan (${list.length})`) + (list.map(y => item(y, d)).join("") || `<p class="msg">Belum ada bimbingan dengan dosen ini.</p>`);
   },
   async tambah() {
-    title.textContent = "Tambah Bimbingan";
     const d = arr(await api(EP.dosen));
+    setHero({ title: "Catat bimbingan", sub: "Tulis hasil bimbingan selagi masih segar di ingatan." });
     app.innerHTML = `<div class="box"><form id="f">
-      <label>Topik bimbingan</label><input name="topik" required placeholder="Revisi latar belakang">
-      <label>Dosen</label><select name="dosenId">${d.map(x => `<option value="${x.id}">${esc(x.nama)}</option>`).join("")}</select>
-      <label>Bab</label><select name="bab">${Array.from({ length: TOTAL_BAB }, (_, i) => `<option>${i + 1}</option>`).join("")}</select>
-      <label>Tanggal</label><input name="tanggal" type="date" required value="${new Date().toISOString().slice(0, 10)}">
-      <label>Status</label><select name="status">${STATUS.map(s => `<option>${s}</option>`).join("")}</select>
-      <label>Catatan / revisi</label><textarea name="catatan" rows="3"></textarea>
-      <button class="btn">Simpan</button></form></div>`;
+      <label for="a" style="margin-top:0">Topik bimbingan</label><input id="a" name="topik" required placeholder="Contoh: Revisi latar belakang">
+      <label for="b">Dosen</label><select id="b" name="dosenId">${d.map(x => `<option value="${esc(x.id)}">${esc(x.nama)}</option>`).join("")}</select>
+      <label for="c">Bab</label><select id="c" name="bab">${Array.from({ length: TOTAL_BAB }, (_, i) => `<option>${i + 1}</option>`).join("")}</select>
+      <label for="e">Tanggal</label><input id="e" name="tanggal" type="date" required value="${new Date().toISOString().slice(0, 10)}">
+      <label for="g">Status</label><select id="g" name="status">${STATUS.map(s => `<option>${s}</option>`).join("")}</select>
+      <label for="h">Catatan revisi</label><textarea id="h" name="catatan" rows="3"></textarea>
+      <button class="btn">Simpan bimbingan</button></form></div>`;
     $("#f").onsubmit = async e => {
       e.preventDefault();
       const v = Object.fromEntries(new FormData(e.target));
@@ -87,47 +114,43 @@ const pages = {
     };
   },
   async progres() {
-    title.textContent = "Progres Skripsi";
     const { b } = await getAll();
-    const acc = b.filter(x => x.status === "ACC").map(x => Number(x.bab));
-    const babAcc = new Set(acc).size;
-    const pct = Math.round(babAcc / TOTAL_BAB * 100);
+    const acc = new Set(b.filter(x => x.status === "ACC").map(x => Number(x.bab))).size;
+    const pct = Math.round(acc / TOTAL_BAB * 100);
     const cnt = s => b.filter(x => x.status === s).length;
-    app.innerHTML = `<div class="box"><small>Progres bab ter-ACC</small><div class="big">${pct}%</div>
-      <div class="track"><div class="bar" style="width:${pct}%"></div></div><small>${babAcc} dari ${TOTAL_BAB} bab</small></div>
-      <div class="box"><b>Total bimbingan: ${b.length}</b><p>${tag("Menunggu")} ${cnt("Menunggu")} &nbsp; ${tag("Revisi")} ${cnt("Revisi")} &nbsp; ${tag("ACC")} ${cnt("ACC")}</p></div>` +
-      Array.from({ length: TOTAL_BAB }, (_, i) => {
-        const l = b.filter(x => Number(x.bab) === i + 1);
-        const s = l.some(x => x.status === "ACC") ? "ACC" : l.length ? l.sort((p, q) => String(q.tanggal).localeCompare(String(p.tanggal)))[0].status : "Belum";
-        return `<div class="card"><span>Bab ${i + 1}</span>${s === "Belum" ? "<small>Belum mulai</small>" : tag(s)}</div>`;
-      }).join("");
+    setHero({ title: "Progres", sub: "Seberapa jauh skripsimu sudah berjalan." });
+    app.innerHTML = `<div class="box center"><svg class="ring" viewBox="0 0 120 120" role="img" aria-label="${pct} persen">
+      <circle class="rb" cx="60" cy="60" r="52"/><circle class="rf" cx="60" cy="60" r="52" transform="rotate(-90 60 60)" style="stroke-dasharray:326.7;stroke-dashoffset:${(326.7 * (1 - pct / 100)).toFixed(1)}"/>
+      <text x="60" y="69" text-anchor="middle">${pct}%</text></svg>
+      <b>${acc} dari ${TOTAL_BAB} bab sudah ACC</b></div>` +
+      sec("Per bab") + tracker(b) +
+      sec("Ringkasan status") + `<div class="box"><div class="row"><span>Total bimbingan</span><b>${b.length}</b></div>
+      <div class="row">${chip("Menunggu")}<b>${cnt("Menunggu")}</b></div><div class="row">${chip("Revisi")}<b>${cnt("Revisi")}</b></div><div class="row">${chip("ACC")}<b>${cnt("ACC")}</b></div></div>`;
   },
   profile() {
-    title.textContent = "Profile";
-    app.innerHTML = `<div class="box" style="text-align:center">
-      <img src="icon.svg" width="80" alt="logo"><h2>SkripsiTrack PWA</h2>
-      <p>Pencatat Progres Bimbingan Skripsi</p><small>Versi 1.0</small></div>
-      <div class="box"><b>Pembuat</b><p>Nama: Alexis Pratama Bahar<br>NIM: 21120124120013<br>Praktikum PPB Ganjil 2026</p>
-      <b>Teknologi</b><p>HTML, CSS, JavaScript, Service Worker, REST API</p></div>`;
+    setHero({ title: "Profile", sub: "Tentang aplikasi dan pembuatnya." });
+    app.innerHTML = `<div class="box center"><div class="av lg">${esc(initials(PROFILE.nama))}</div><b style="font-size:18px">${esc(PROFILE.nama)}</b><br>
+      <span style="color:var(--mut)">${esc(PROFILE.nim)} · ${esc(PROFILE.kelas)}</span></div>` +
+      sec("Tentang aplikasi") + `<div class="box"><b>SkripsiTrack PWA</b> v1.0<p style="margin:6px 0 0;color:var(--mut)">Aplikasi untuk mencatat bimbingan skripsi, memantau status revisi, dan melihat progres tiap bab. Praktikum PPB Ganjil 2026.</p></div>` +
+      sec("Teknologi") + `<div class="tags"><span>HTML</span><span>CSS</span><span>JavaScript</span><span>Service Worker</span><span>REST API</span></div>`;
   }
 };
 
 async function route() {
   const [, r = "", id] = location.hash.replace("#", "").split("/");
   const name = r === "" ? "home" : r;
-  const nav = name === "detail" ? "home" : name;
-  document.querySelectorAll("nav a").forEach(a => a.classList.toggle("on", a.dataset.r === nav));
-  back.hidden = !id;
+  document.querySelectorAll("nav a").forEach(a => a.classList.toggle("on", a.dataset.r === (name === "detail" ? "home" : name)));
   app.innerHTML = `<p class="msg">Memuat...</p>`;
+  window.scrollTo(0, 0);
   try {
     if (name === "detail") await pages.detail(id);
     else if (name === "dosen" && id) await pages.dosenDetail(id);
     else await (pages[name] || pages.home)();
   } catch (e) {
-    app.innerHTML = `<p class="msg">Gagal memuat data (${esc(e.message)}).<br>Cek koneksi/API_BASE di config.js.</p>`;
+    setHero({ title: "Ups", sub: "Data belum bisa dimuat." });
+    app.innerHTML = `<p class="msg">Gagal memuat data (${esc(e.message)}).<br>Pastikan API menyala dan API_BASE di config.js sudah benar.</p>`;
   }
 }
-back.onclick = () => history.back();
 addEventListener("hashchange", route);
 route();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
