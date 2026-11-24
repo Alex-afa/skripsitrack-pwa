@@ -1,10 +1,19 @@
 {
+  "id": "./",
   "name": "SkripsiTrack PWA - Pencatat Progres Bimbingan Skripsi",
   "short_name": "SkripsiTrack",
-  "start_url": "./index.html",
+  "description": "Catat bimbingan skripsi, pantau status revisi, dan lihat progres tiap bab.",
+  "lang": "id",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#4338ca",
-  "theme_color": "#4338ca",
-  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+  "orientation": "portrait",
+  "background_color": "#1b1a4b",
+  "theme_color": "#1b1a4b",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
 }
