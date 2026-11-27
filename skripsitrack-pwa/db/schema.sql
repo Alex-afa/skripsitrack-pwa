@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS bimbingan (
   dosen_id integer REFERENCES dosen(id) ON DELETE SET NULL,
   bab      integer NOT NULL CHECK (bab BETWEEN 1 AND 10),
   status   text NOT NULL DEFAULT 'Menunggu' CHECK (status IN ('Menunggu','Revisi','ACC')),
-  catatan  text
+  catatan  text,
+  version  integer NOT NULL DEFAULT 1   -- naik 1 setiap kali data diubah (untuk deteksi konflik 409)
 );
 
 -- Data awal (seed). Ubah nama dosen sesuai kebutuhan.
