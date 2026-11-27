@@ -66,3 +66,7 @@ nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;st
 nav a.on{color:var(--txt);font-weight:700}
 nav a.on::before{content:"";position:absolute;top:-1.5px;left:16%;right:16%;height:4px;background:var(--acc)}
 @media(prefers-reduced-motion:no-preference){.hero.big h1{animation:in .5s ease-out both}@keyframes in{from{opacity:0;transform:translateY(8px)}}}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));width:min(560px,92vw);padding:12px 14px;border-radius:10px;border:1.5px solid var(--txt);font-size:14px;font-weight:600;z-index:20;box-shadow:3px 3px 0 var(--txt)}
+.toast[hidden]{display:none}
+.toast.warn{background:var(--warnbg);color:var(--warn)}.toast.ok{background:var(--okbg);color:var(--ok)}.toast.bad{background:var(--badbg);color:var(--bad)}

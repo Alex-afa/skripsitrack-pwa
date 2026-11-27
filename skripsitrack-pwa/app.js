@@ -10,8 +10,35 @@ const initials = n => String(n || "?").replace(/[^A-Za-z ]/g, "").split(" ").fil
 
 async function api(path, opt = {}) {
   const r = await fetch(API_BASE + path, { headers: { "Content-Type": "application/json" }, ...opt });
-  if (!r.ok) throw new Error("HTTP " + r.status);
+  if (!r.ok) {
+    let body = null;
+    try { body = await r.json(); } catch {}
+    throw Object.assign(new Error("HTTP " + r.status), { status: r.status, body });
+  }
   return r.status === 204 ? null : r.json();
+}
+
+// pesan singkat di bawah layar
+let toastTimer;
+function toast(msg, type = "warn") {
+  let t = $("#toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  t.className = "toast " + type; t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 7000);
+}
+
+// Penanganan error saat ubah/hapus: 409 = data sudah diubah di tab lain -> sinkronkan; 404 = sudah dihapus
+async function syncAfterError(e, id) {
+  if (e.status === 409) {
+    const now = e.body && e.body.current ? ` Status sekarang: ${e.body.current.status}.` : "";
+    await pages.detail(id).catch(() => {});
+    toast(`Konflik (HTTP 409): data ini sudah diubah di tab/perangkat lain.${now} Data sudah disinkronkan, silakan ubah lagi jika perlu.`, "warn");
+  } else if (e.status === 404) {
+    toast("Data ini sudah dihapus di tab/perangkat lain.", "warn");
+    location.hash = "#/";
+  } else {
+    toast("Gagal menyimpan: " + e.message, "bad");
+  }
 }
 const getAll = async () => {
   const [b, d] = await Promise.all([api(EP.bimbingan), api(EP.dosen)]);
@@ -68,14 +95,20 @@ const pages = {
       <div class="box"><label for="st" style="margin-top:0">Ubah status</label>
       <select id="st">${STATUS.map(s => `<option ${s === x.status ? "selected" : ""}>${s}</option>`).join("")}</select>
       <button class="btn" id="upd">Simpan status</button><button class="btn ghost" id="del">Hapus catatan</button></div>`;
+    // version = versi data yang sedang dilihat; server menolak (409) jika di database sudah berbeda
     $("#upd").onclick = async () => {
-      await api(`${EP.bimbingan}/${id}`, { method: "PUT", body: JSON.stringify({ ...x, status: $("#st").value }) });
-      pages.detail(id);
+      try {
+        await api(`${EP.bimbingan}/${id}`, { method: "PUT", body: JSON.stringify({ status: $("#st").value, version: x.version }) });
+        await pages.detail(id);
+        toast("Status berhasil disimpan.", "ok");
+      } catch (e) { await syncAfterError(e, id); }
     };
     $("#del").onclick = async () => {
       if (!confirm("Hapus catatan ini?")) return;
-      await api(`${EP.bimbingan}/${id}`, { method: "DELETE" });
-      location.hash = "#/";
+      try {
+        await api(`${EP.bimbingan}/${id}?version=${x.version}`, { method: "DELETE" });
+        location.hash = "#/";
+      } catch (e) { await syncAfterError(e, id); }
     };
   },
   async dosen() {

@@ -21,10 +21,14 @@ Riwayat bimbingan (list + detail), daftar dosen (list + detail), tambah/ubah sta
 | GET | /api/bimbingan | Daftar bimbingan |
 | GET | /api/bimbingan/:id | Detail bimbingan |
 | POST | /api/bimbingan | Tambah bimbingan |
-| PUT | /api/bimbingan/:id | Ubah bimbingan (mis. status) |
-| DELETE | /api/bimbingan/:id | Hapus bimbingan |
+| PUT | /api/bimbingan/:id | Ubah bimbingan (kirim `version`; versi tidak cocok -> **409 Conflict**) |
+| DELETE | /api/bimbingan/:id?version=N | Hapus bimbingan (versi tidak cocok -> **409 Conflict**) |
 | GET/POST | /api/dosen | Daftar / tambah dosen |
 | GET/PUT/DELETE | /api/dosen/:id | Detail / ubah / hapus dosen |
+
+## Konflik edit antar tab (HTTP 409)
+Tabel `bimbingan` punya kolom `version` yang naik 1 setiap kali data diubah. Saat mengubah status, klien mengirim versi yang sedang dilihatnya.
+Jika di database sudah berbeda (data sudah diubah di tab/perangkat lain), server membalas **409 Conflict** beserta data terbaru, lalu aplikasi menyinkronkan tampilan dan memberi tahu pengguna. Jika data sudah dihapus, server membalas 404.
 
 ## Menjalankan di komputer
 1. `npm install`
